@@ -16,8 +16,11 @@ import {
 
 const tabs = [
   { id: "dashboard", label: "대시보드" },
+  { id: "timeline", label: "연표" },
   { id: "roadmap", label: "200화 로드맵" },
-  { id: "codex", label: "설정집" },
+  { id: "characters", label: "캐릭터" },
+  { id: "factions", label: "세력" },
+  { id: "world", label: "세계관" },
   { id: "board", label: "기획 보드" },
   { id: "sources", label: "원고 분석" }
 ];
@@ -116,14 +119,15 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="deploy-note">
-          <strong>GitHub Pages ready</strong>
-          <span>정적 React 앱이라 새 저장소에 올려도 기존 Pages를 건드리지 않습니다.</span>
+        <div className="sidebar-summary">
+          <strong>200화 장편 설계실</strong>
+          <span>연표, 인물, 세력, 마법 규칙을 따로 관리합니다.</span>
         </div>
       </aside>
 
-      <section className="content-panel">
+      <section className="content-panel" key={activeTab}>
         {activeTab === "dashboard" ? <Dashboard /> : null}
+        {activeTab === "timeline" ? <TimelinePage /> : null}
         {activeTab === "roadmap" ? (
           <Roadmap
             filteredEpisodes={filteredEpisodes}
@@ -133,7 +137,9 @@ export default function App() {
             setSelectedArc={setSelectedArc}
           />
         ) : null}
-        {activeTab === "codex" ? <Codex /> : null}
+        {activeTab === "characters" ? <CharactersPage /> : null}
+        {activeTab === "factions" ? <FactionsPage /> : null}
+        {activeTab === "world" ? <WorldPage /> : null}
         {activeTab === "board" ? (
           <Board
             addBoardCard={addBoardCard}
@@ -163,8 +169,9 @@ function Dashboard() {
 
       <section className="metric-grid" aria-label="기획 현황">
         <Metric value={sourceFiles.length} label="분석 원고" />
-        <Metric value="47" label="기존 phase" />
-        <Metric value={characters.length} label="핵심 인물" />
+        <Metric value={timeline.length} label="연표 사건" />
+        <Metric value={characters.length} label="캐릭터" />
+        <Metric value={factions.length} label="세력" />
         <Metric value={episodeRoadmap.length} label="로드맵 화수" />
       </section>
 
@@ -294,28 +301,91 @@ function Roadmap({ filteredEpisodes, query, selectedArc, setQuery, setSelectedAr
   );
 }
 
-function Codex() {
+function TimelinePage() {
   return (
     <div className="page-stack">
       <header className="page-header compact">
-        <p className="eyebrow">Codex</p>
-        <h2>인물, 세력, 세계관 설정집</h2>
-        <p>장편 연재 중 흔들리기 쉬운 설정을 빠르게 대조할 수 있게 묶었습니다.</p>
+        <p className="eyebrow">Timeline</p>
+        <h2>전체 스토리 연표</h2>
+        <p>재앙 이전부터 최종부까지, 독자가 따라갈 핵심 사건과 떡밥 회수 지점을 순서대로 정리했습니다.</p>
       </header>
 
       <section className="panel">
         <div className="section-heading">
-          <p className="eyebrow">Characters</p>
-          <h3>핵심 인물</h3>
+          <p className="eyebrow">Chronicle</p>
+          <h3>상세 사건 흐름</h3>
         </div>
-        <div className="card-grid">
-          {characters.map((character) => (
-            <article className="detail-card" key={character.name}>
-              <div className="card-title-row">
-                <h4>{character.name}</h4>
-                <span>{character.status}</span>
+        <div className="timeline detailed">
+          {timeline.map((item, index) => (
+            <article className="timeline-item detailed" key={`${item.era}-${item.event}`}>
+              <div className="timeline-index">{String(index + 1).padStart(2, "0")}</div>
+              <div>
+                <span>{item.era}</span>
+                <strong>{item.event}</strong>
+                <p>{item.impact}</p>
+                {item.hook ? <small>{item.hook}</small> : null}
               </div>
-              <p className="role-text">{character.role}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CharactersPage() {
+  return (
+    <div className="page-stack">
+      <header className="page-header compact">
+        <p className="eyebrow">Characters</p>
+        <h2>캐릭터 스펙표</h2>
+        <p>외모, 인상, 복장, 상처, 욕망을 한 카드에 묶었습니다. 장면을 쓸 때 바로 꺼내 보는 인물 바이블입니다.</p>
+      </header>
+
+      <section className="character-grid">
+        {characters.map((character) => (
+          <article className="character-card" key={character.name}>
+            <div className="character-topline">
+              <div>
+                <p className="eyebrow">{character.role}</p>
+                <h3>{character.name}</h3>
+              </div>
+              <span>{character.status}</span>
+            </div>
+
+            <div className="portrait-panel">
+              <div className="portrait-mark">{character.name.slice(0, 1)}</div>
+              <p>{character.spec?.appearance}</p>
+            </div>
+
+            <dl className="spec-grid">
+              <div>
+                <dt>나이대</dt>
+                <dd>{character.spec?.age ?? "미정"}</dd>
+              </div>
+              <div>
+                <dt>신장/체형</dt>
+                <dd>{character.spec?.height ?? "미정"}</dd>
+              </div>
+              <div>
+                <dt>머리/눈</dt>
+                <dd>{character.spec?.colors ?? "미정"}</dd>
+              </div>
+              <div>
+                <dt>복장</dt>
+                <dd>{character.spec?.outfit ?? "미정"}</dd>
+              </div>
+              <div>
+                <dt>첫인상</dt>
+                <dd>{character.spec?.impression ?? "미정"}</dd>
+              </div>
+              <div>
+                <dt>상징</dt>
+                <dd>{character.spec?.motif ?? "미정"}</dd>
+              </div>
+            </dl>
+
+            <div className="character-drama">
               <dl>
                 <div>
                   <dt>상처</dt>
@@ -330,35 +400,69 @@ function Codex() {
                   <dd>{character.arc}</dd>
                 </div>
               </dl>
-              <div className="chip-list small">
-                {character.tags.map((tag) => (
-                  <span className="chip" key={tag}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </article>
-          ))}
-        </div>
+            </div>
+
+            <div className="chip-list small">
+              {character.tags.map((tag) => (
+                <span className="chip" key={tag}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </article>
+        ))}
       </section>
+    </div>
+  );
+}
+
+function FactionsPage() {
+  return (
+    <div className="page-stack">
+      <header className="page-header compact">
+        <p className="eyebrow">Factions</p>
+        <h2>세력 구도</h2>
+        <p>각 세력은 매화 갈등을 만드는 엔진입니다. 명분, 충돌 지점, 사용법을 따로 보이게 정리했습니다.</p>
+      </header>
+
+      <section className="faction-grid">
+        {factions.map((faction) => (
+          <article className="faction-card" key={faction.name}>
+            <div className="card-title-row">
+              <h3>{faction.name}</h3>
+              <span>{faction.type}</span>
+            </div>
+            <dl>
+              <div>
+                <dt>목표</dt>
+                <dd>{faction.goal}</dd>
+              </div>
+              <div>
+                <dt>충돌</dt>
+                <dd>{faction.conflict}</dd>
+              </div>
+              <div>
+                <dt>서사 사용법</dt>
+                <dd>{faction.use}</dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function WorldPage() {
+  return (
+    <div className="page-stack">
+      <header className="page-header compact">
+        <p className="eyebrow">World Codex</p>
+        <h2>세계관과 마법 규칙</h2>
+        <p>지역, 마법, 병, 성역을 따로 분리했습니다. 독자가 헷갈리지 않게 규칙과 대가가 먼저 보이도록 했습니다.</p>
+      </header>
 
       <section className="two-column">
-        <article className="panel">
-          <div className="section-heading">
-            <p className="eyebrow">Factions</p>
-            <h3>세력</h3>
-          </div>
-          <div className="stack-list">
-            {factions.map((faction) => (
-              <div className="list-card" key={faction.name}>
-                <strong>{faction.name}</strong>
-                <span>{faction.type}</span>
-                <p>{faction.use}</p>
-              </div>
-            ))}
-          </div>
-        </article>
-
         <article className="panel">
           <div className="section-heading">
             <p className="eyebrow">Magic</p>
@@ -366,10 +470,27 @@ function Codex() {
           </div>
           <div className="stack-list">
             {magicSystems.map((system) => (
-              <div className="list-card" key={system.name}>
+              <div className="list-card interactive" key={system.name}>
                 <strong>{system.name}</strong>
                 <p>{system.rule}</p>
                 <small>{system.cost}</small>
+                <em>{system.storyUse}</em>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="section-heading">
+            <p className="eyebrow">Locations</p>
+            <h3>주요 지역</h3>
+          </div>
+          <div className="stack-list">
+            {locations.map((location) => (
+              <div className="list-card interactive" key={location.name}>
+                <strong>{location.name}</strong>
+                <span>{location.category}</span>
+                <p>{location.note}</p>
               </div>
             ))}
           </div>
@@ -378,16 +499,14 @@ function Codex() {
 
       <section className="panel">
         <div className="section-heading">
-          <p className="eyebrow">Timeline</p>
-          <h3>연표</h3>
+          <p className="eyebrow">World overview</p>
+          <h3>세계 이동축</h3>
         </div>
-        <div className="timeline">
-          {timeline.map((item) => (
-            <article className="timeline-item" key={`${item.era}-${item.event}`}>
-              <span>{item.era}</span>
-              <strong>{item.event}</strong>
-              <p>{item.impact}</p>
-            </article>
+        <div className="world-map expanded" aria-label="주요 지역 관계도">
+          {locations.slice(0, 10).map((location, index) => (
+            <span className={`map-node node-${(index % 6) + 1}`} key={location.name}>
+              {location.name}
+            </span>
           ))}
         </div>
       </section>
