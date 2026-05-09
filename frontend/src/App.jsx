@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
+  appMeta,
   boardColumns,
   characters,
+  currentStory,
   episodeRoadmap,
   factions,
   locations,
   magicSystems,
   sourceFiles,
   storyArcs,
+  storyProjects,
   storySpine,
   themes,
   timeline
@@ -99,12 +102,27 @@ export default function App() {
     <main className="app-shell">
       <aside className="sidebar" aria-label="스토리 룸 메뉴">
         <div className="brand-block">
-          <span className="brand-mark">GW</span>
+          <span className="brand-mark">S2</span>
           <div>
-            <p className="eyebrow">Story Room</p>
-            <h1>잿빛 눈물의 겨울</h1>
+            <p className="eyebrow">Longform Studio</p>
+            <h1>{appMeta.name}</h1>
           </div>
         </div>
+
+        <section className="story-switcher" aria-label="작품 선택">
+          <p className="eyebrow">Active Story</p>
+          {storyProjects.map((story) => (
+            <button
+              className={story.id === currentStory.id ? "story-option active" : "story-option"}
+              disabled={story.disabled}
+              key={story.id}
+              type="button"
+            >
+              <strong>{story.title}</strong>
+              <span>{story.status}</span>
+            </button>
+          ))}
+        </section>
 
         <nav className="tab-list">
           {tabs.map((tab) => (
@@ -120,8 +138,8 @@ export default function App() {
         </nav>
 
         <div className="sidebar-summary">
-          <strong>200화 장편 설계실</strong>
-          <span>연표, 인물, 세력, 마법 규칙을 따로 관리합니다.</span>
+          <strong>{appMeta.tagline}</strong>
+          <span>작품을 추가해도 같은 구조로 200화 설계를 확장할 수 있습니다.</span>
         </div>
       </aside>
 
@@ -159,20 +177,35 @@ function Dashboard() {
   return (
     <div className="page-stack">
       <header className="page-header">
-        <p className="eyebrow">200 episode planning hub</p>
-        <h2>원고에서 뽑은 설정을 한 화면에서 관리하는 장편 기획실</h2>
-        <p>
-          현재 4개 텍스트 원고의 핵심 축을 정리하고, 이후 200화 분량으로 확장할 수
-          있는 아크, 인물, 세력, 세계관 데이터를 배치했습니다.
-        </p>
+        <p className="eyebrow">{appMeta.name}</p>
+        <h2>{currentStory.title}</h2>
+        <p>{currentStory.logline}</p>
+        <div className="hero-meta">
+          <span>{currentStory.genre}</span>
+          <span>{currentStory.targetEpisodes}화 목표</span>
+          <span>{currentStory.status}</span>
+        </div>
       </header>
 
       <section className="metric-grid" aria-label="기획 현황">
-        <Metric value={sourceFiles.length} label="분석 원고" />
+        <Metric value={storyProjects.length} label="작품 슬롯" />
+        <Metric value={sourceFiles.length} label="현재 원고" />
         <Metric value={timeline.length} label="연표 사건" />
         <Metric value={characters.length} label="캐릭터" />
         <Metric value={factions.length} label="세력" />
-        <Metric value={episodeRoadmap.length} label="로드맵 화수" />
+      </section>
+
+      <section className="project-grid">
+        {storyProjects.map((story) => (
+          <article className={story.disabled ? "project-card muted" : "project-card"} key={story.id}>
+            <div>
+              <p className="eyebrow">{story.status}</p>
+              <h3>{story.title}</h3>
+            </div>
+            <p>{story.subtitle}</p>
+            <small>{story.theme}</small>
+          </article>
+        ))}
       </section>
 
       <section className="dashboard-grid">
@@ -306,7 +339,7 @@ function TimelinePage() {
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Timeline</p>
-        <h2>전체 스토리 연표</h2>
+        <h2>{currentStory.title} 연표</h2>
         <p>재앙 이전부터 최종부까지, 독자가 따라갈 핵심 사건과 떡밥 회수 지점을 순서대로 정리했습니다.</p>
       </header>
 
@@ -338,7 +371,7 @@ function CharactersPage() {
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Characters</p>
-        <h2>캐릭터 스펙표</h2>
+        <h2>{currentStory.title} 캐릭터 스펙표</h2>
         <p>외모, 인상, 복장, 상처, 욕망을 한 카드에 묶었습니다. 장면을 쓸 때 바로 꺼내 보는 인물 바이블입니다.</p>
       </header>
 
@@ -421,7 +454,7 @@ function FactionsPage() {
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Factions</p>
-        <h2>세력 구도</h2>
+        <h2>{currentStory.title} 세력 구도</h2>
         <p>각 세력은 매화 갈등을 만드는 엔진입니다. 명분, 충돌 지점, 사용법을 따로 보이게 정리했습니다.</p>
       </header>
 
@@ -458,7 +491,7 @@ function WorldPage() {
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">World Codex</p>
-        <h2>세계관과 마법 규칙</h2>
+        <h2>{currentStory.title} 세계관과 마법 규칙</h2>
         <p>지역, 마법, 병, 성역을 따로 분리했습니다. 독자가 헷갈리지 않게 규칙과 대가가 먼저 보이도록 했습니다.</p>
       </header>
 
@@ -582,7 +615,7 @@ function Sources() {
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Source analysis</p>
-        <h2>현재 텍스트 4개에서 취합한 자료</h2>
+        <h2>{currentStory.title} 원고 분석</h2>
         <p>각 원고가 장편 설계에서 담당하는 역할과 앞으로 보강할 지점을 정리했습니다.</p>
       </header>
 

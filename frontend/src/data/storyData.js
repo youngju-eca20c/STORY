@@ -1,3 +1,42 @@
+export const appMeta = {
+  name: "STORY 200",
+  tagline: "장편 웹소설 200화 설계실",
+  description:
+    "여러 작품의 연표, 캐릭터, 세력, 세계관, 회차 로드맵을 같은 형식으로 관리하는 종합 기획 앱입니다."
+};
+
+export const storyProjects = [
+  {
+    id: "witch-at-worlds-end",
+    title: "멸망 끝에 마녀를 주웠다",
+    subtitle: "영원의 겨울 이후, 망령 사냥꾼이 불꽃 마녀를 주우며 시작되는 장편 판타지",
+    genre: "다크 판타지 / 생존 / 정치 / 성장",
+    status: "현재 작업 중",
+    targetEpisodes: 200,
+    sourceCount: 4,
+    logline:
+      "마법을 증오하던 남자 카일은 폐허의 수도원에서 불꽃을 피우는 기억상실 소녀를 발견하고, 그녀를 죽이려던 손으로 세계의 봄을 다시 붙잡아야 한다.",
+    theme:
+      "멸망 뒤에도 사람은 다시 선택할 수 있는가, 그리고 구원받은 사람은 어떤 책임을 져야 하는가.",
+    accent: "#f1b84b"
+  },
+  {
+    id: "next-story-slot",
+    title: "다음 스토리 슬롯",
+    subtitle: "새 원고를 추가하면 같은 구조로 연표와 설정집을 확장할 수 있습니다.",
+    genre: "미정",
+    status: "추가 예정",
+    targetEpisodes: 200,
+    sourceCount: 0,
+    logline: "새 작품의 로그라인을 여기에 연결합니다.",
+    theme: "작품별 핵심 질문을 여기에 둡니다.",
+    accent: "#8aa39a",
+    disabled: true
+  }
+];
+
+export const currentStory = storyProjects[0];
+
 export const sourceFiles = [
   {
     title: "멸망 끝에 마녀를 주웠다",
