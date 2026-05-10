@@ -33,6 +33,7 @@ button {
 }
 
 .app-shell {
+  --story-accent: #f1b84b;
   display: grid;
   grid-template-columns: 278px minmax(0, 1fr);
   min-height: 100vh;
@@ -135,8 +136,8 @@ button {
 
 .story-option.active,
 .story-option:hover:not(:disabled) {
-  background: rgba(241, 184, 75, 0.16);
-  border-color: rgba(241, 184, 75, 0.8);
+  background: color-mix(in srgb, var(--story-accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--story-accent) 82%, white 18%);
   transform: translateX(4px);
 }
 
@@ -163,7 +164,7 @@ button {
 }
 
 .tab-button::before {
-  background: #f1b84b;
+  background: var(--story-accent);
   border-radius: 999px;
   content: "";
   height: 60%;
@@ -229,7 +230,7 @@ button {
 .page-header {
   background:
     linear-gradient(135deg, rgba(24, 41, 37, 0.96), rgba(67, 75, 57, 0.9)),
-    linear-gradient(90deg, rgba(241, 184, 75, 0.18), transparent 48%);
+    linear-gradient(90deg, color-mix(in srgb, var(--story-accent) 22%, transparent), transparent 48%);
   border-radius: 8px;
   color: #ffffff;
   min-height: 270px;
@@ -337,7 +338,7 @@ button {
 }
 
 .metric-card strong {
-  color: #a64e34;
+  color: color-mix(in srgb, var(--story-accent) 62%, #7a2f2a 38%);
   font-size: 34px;
   line-height: 1;
 }
@@ -357,7 +358,7 @@ button {
 .project-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .project-card {
@@ -375,7 +376,7 @@ button {
 }
 
 .project-card:hover {
-  border-color: #f1b84b;
+  border-color: var(--story-accent);
   box-shadow: 0 22px 50px rgba(29, 46, 43, 0.14);
   transform: translateY(-3px);
 }
@@ -421,7 +422,7 @@ button {
 }
 
 .section-heading .eyebrow {
-  color: #8e4b33;
+  color: color-mix(in srgb, var(--story-accent) 54%, #6c3b31 46%);
 }
 
 .spine-list {
@@ -446,7 +447,7 @@ button {
 
 .spine-list li::before {
   align-items: center;
-  background: #d95f3b;
+  background: color-mix(in srgb, var(--story-accent) 62%, #d95f3b 38%);
   border-radius: 8px;
   color: #ffffff;
   content: counter(spine);

@@ -2,19 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   appMeta,
-  boardColumns,
-  characters,
-  currentStory,
-  episodeRoadmap,
-  factions,
-  locations,
-  magicSystems,
-  sourceFiles,
-  storyArcs,
+  storyDatasets,
   storyProjects,
-  storySpine,
-  themes,
-  timeline
 } from "./data/storyData";
 
 const tabs = [
@@ -28,9 +17,9 @@ const tabs = [
   { id: "sources", label: "원고 분석" }
 ];
 
-const boardStorageKey = "gray-winter-story-board-v1";
+const boardStorageKey = "story-200-board-v2";
 
-function loadSavedBoard() {
+function loadSavedBoards() {
   if (typeof window === "undefined") {
     return {};
   }
@@ -44,14 +33,37 @@ function loadSavedBoard() {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [selectedStoryId, setSelectedStoryId] = useState(storyProjects[0].id);
   const [selectedArc, setSelectedArc] = useState("all");
   const [query, setQuery] = useState("");
-  const [savedBoard, setSavedBoard] = useState(loadSavedBoard);
+  const [savedBoards, setSavedBoards] = useState(loadSavedBoards);
   const [drafts, setDrafts] = useState({});
 
+  const activeStory = storyProjects.find((story) => story.id === selectedStoryId) ?? storyProjects[0];
+  const activeData = storyDatasets[activeStory.id] ?? storyDatasets[storyProjects[0].id];
+  const {
+    boardColumns,
+    characters,
+    episodeRoadmap,
+    factions,
+    locations,
+    magicSystems,
+    sourceFiles,
+    storyArcs,
+    storySpine,
+    themes,
+    timeline
+  } = activeData;
+  const savedBoard = savedBoards[selectedStoryId] ?? {};
+
   useEffect(() => {
-    window.localStorage.setItem(boardStorageKey, JSON.stringify(savedBoard));
-  }, [savedBoard]);
+    window.localStorage.setItem(boardStorageKey, JSON.stringify(savedBoards));
+  }, [savedBoards]);
+
+  useEffect(() => {
+    setSelectedArc("all");
+    setQuery("");
+  }, [selectedStoryId]);
 
   const filteredEpisodes = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -71,7 +83,7 @@ export default function App() {
 
       return matchesArc && (!normalizedQuery || searchableText.includes(normalizedQuery));
     });
-  }, [query, selectedArc]);
+  }, [episodeRoadmap, query, selectedArc]);
 
   function updateDraft(columnId, value) {
     setDrafts((current) => ({ ...current, [columnId]: value }));
@@ -84,22 +96,28 @@ export default function App() {
       return;
     }
 
-    setSavedBoard((current) => ({
+    setSavedBoards((current) => ({
       ...current,
-      [columnId]: [...(current[columnId] ?? []), text]
+      [selectedStoryId]: {
+        ...(current[selectedStoryId] ?? {}),
+        [columnId]: [...(current[selectedStoryId]?.[columnId] ?? []), text]
+      }
     }));
     updateDraft(columnId, "");
   }
 
   function removeBoardCard(columnId, index) {
-    setSavedBoard((current) => ({
+    setSavedBoards((current) => ({
       ...current,
-      [columnId]: (current[columnId] ?? []).filter((_, cardIndex) => cardIndex !== index)
+      [selectedStoryId]: {
+        ...(current[selectedStoryId] ?? {}),
+        [columnId]: (current[selectedStoryId]?.[columnId] ?? []).filter((_, cardIndex) => cardIndex !== index)
+      }
     }));
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" style={{ "--story-accent": activeStory.accent }}>
       <aside className="sidebar" aria-label="스토리 룸 메뉴">
         <div className="brand-block">
           <span className="brand-mark">S2</span>
@@ -113,10 +131,11 @@ export default function App() {
           <p className="eyebrow">Active Story</p>
           {storyProjects.map((story) => (
             <button
-              className={story.id === currentStory.id ? "story-option active" : "story-option"}
+              className={story.id === activeStory.id ? "story-option active" : "story-option"}
               disabled={story.disabled}
               key={story.id}
               type="button"
+              onClick={() => setSelectedStoryId(story.id)}
             >
               <strong>{story.title}</strong>
               <span>{story.status}</span>
@@ -143,9 +162,22 @@ export default function App() {
         </div>
       </aside>
 
-      <section className="content-panel" key={activeTab}>
-        {activeTab === "dashboard" ? <Dashboard /> : null}
-        {activeTab === "timeline" ? <TimelinePage /> : null}
+      <section className="content-panel" key={`${activeStory.id}-${activeTab}`}>
+        {activeTab === "dashboard" ? (
+          <Dashboard
+            activeStory={activeStory}
+            characters={characters}
+            factions={factions}
+            locations={locations}
+            sourceFiles={sourceFiles}
+            storyArcs={storyArcs}
+            storyProjects={storyProjects}
+            storySpine={storySpine}
+            themes={themes}
+            timeline={timeline}
+          />
+        ) : null}
+        {activeTab === "timeline" ? <TimelinePage activeStory={activeStory} timeline={timeline} /> : null}
         {activeTab === "roadmap" ? (
           <Roadmap
             filteredEpisodes={filteredEpisodes}
@@ -153,37 +185,52 @@ export default function App() {
             selectedArc={selectedArc}
             setQuery={setQuery}
             setSelectedArc={setSelectedArc}
+            storyArcs={storyArcs}
           />
         ) : null}
-        {activeTab === "characters" ? <CharactersPage /> : null}
-        {activeTab === "factions" ? <FactionsPage /> : null}
-        {activeTab === "world" ? <WorldPage /> : null}
+        {activeTab === "characters" ? <CharactersPage activeStory={activeStory} characters={characters} /> : null}
+        {activeTab === "factions" ? <FactionsPage activeStory={activeStory} factions={factions} /> : null}
+        {activeTab === "world" ? (
+          <WorldPage activeStory={activeStory} locations={locations} magicSystems={magicSystems} />
+        ) : null}
         {activeTab === "board" ? (
           <Board
             addBoardCard={addBoardCard}
+            boardColumns={boardColumns}
             drafts={drafts}
             removeBoardCard={removeBoardCard}
             savedBoard={savedBoard}
             updateDraft={updateDraft}
           />
         ) : null}
-        {activeTab === "sources" ? <Sources /> : null}
+        {activeTab === "sources" ? <Sources activeStory={activeStory} sourceFiles={sourceFiles} /> : null}
       </section>
     </main>
   );
 }
 
-function Dashboard() {
+function Dashboard({
+  activeStory,
+  characters,
+  factions,
+  locations,
+  sourceFiles,
+  storyArcs,
+  storyProjects,
+  storySpine,
+  themes,
+  timeline
+}) {
   return (
     <div className="page-stack">
       <header className="page-header">
         <p className="eyebrow">{appMeta.name}</p>
-        <h2>{currentStory.title}</h2>
-        <p>{currentStory.logline}</p>
+        <h2>{activeStory.title}</h2>
+        <p>{activeStory.logline}</p>
         <div className="hero-meta">
-          <span>{currentStory.genre}</span>
-          <span>{currentStory.targetEpisodes}화 목표</span>
-          <span>{currentStory.status}</span>
+          <span>{activeStory.genre}</span>
+          <span>{activeStory.targetEpisodes}화 목표</span>
+          <span>{activeStory.status}</span>
         </div>
       </header>
 
@@ -239,7 +286,7 @@ function Dashboard() {
       <section className="panel">
         <div className="section-heading">
           <p className="eyebrow">Arc map</p>
-          <h3>10개 아크로 나눈 200화 구조</h3>
+          <h3>{storyArcs.length}개 아크로 나눈 200화 구조</h3>
         </div>
         <div className="arc-grid">
           {storyArcs.map((arc) => (
@@ -280,13 +327,15 @@ function Metric({ value, label }) {
   );
 }
 
-function Roadmap({ filteredEpisodes, query, selectedArc, setQuery, setSelectedArc }) {
+function Roadmap({ filteredEpisodes, query, selectedArc, setQuery, setSelectedArc, storyArcs }) {
+  const arcUnit = storyArcs.length ? Math.round(200 / storyArcs.length) : 0;
+
   return (
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Roadmap</p>
         <h2>200화 장편 로드맵</h2>
-        <p>아크별 20화 단위로 큰 사건, 감정 변화, 다음 훅을 끊어볼 수 있습니다.</p>
+        <p>아크별 {arcUnit}화 단위로 큰 사건, 감정 변화, 다음 훅을 끊어볼 수 있습니다.</p>
       </header>
 
       <section className="toolbar" aria-label="로드맵 필터">
@@ -334,12 +383,12 @@ function Roadmap({ filteredEpisodes, query, selectedArc, setQuery, setSelectedAr
   );
 }
 
-function TimelinePage() {
+function TimelinePage({ activeStory, timeline }) {
   return (
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Timeline</p>
-        <h2>{currentStory.title} 연표</h2>
+        <h2>{activeStory.title} 연표</h2>
         <p>재앙 이전부터 최종부까지, 독자가 따라갈 핵심 사건과 떡밥 회수 지점을 순서대로 정리했습니다.</p>
       </header>
 
@@ -366,12 +415,12 @@ function TimelinePage() {
   );
 }
 
-function CharactersPage() {
+function CharactersPage({ activeStory, characters }) {
   return (
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Characters</p>
-        <h2>{currentStory.title} 캐릭터 스펙표</h2>
+        <h2>{activeStory.title} 캐릭터 스펙표</h2>
         <p>외모, 인상, 복장, 상처, 욕망을 한 카드에 묶었습니다. 장면을 쓸 때 바로 꺼내 보는 인물 바이블입니다.</p>
       </header>
 
@@ -449,12 +498,12 @@ function CharactersPage() {
   );
 }
 
-function FactionsPage() {
+function FactionsPage({ activeStory, factions }) {
   return (
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Factions</p>
-        <h2>{currentStory.title} 세력 구도</h2>
+        <h2>{activeStory.title} 세력 구도</h2>
         <p>각 세력은 매화 갈등을 만드는 엔진입니다. 명분, 충돌 지점, 사용법을 따로 보이게 정리했습니다.</p>
       </header>
 
@@ -486,12 +535,12 @@ function FactionsPage() {
   );
 }
 
-function WorldPage() {
+function WorldPage({ activeStory, locations, magicSystems }) {
   return (
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">World Codex</p>
-        <h2>{currentStory.title} 세계관과 마법 규칙</h2>
+        <h2>{activeStory.title} 세계관과 마법 규칙</h2>
         <p>지역, 마법, 병, 성역을 따로 분리했습니다. 독자가 헷갈리지 않게 규칙과 대가가 먼저 보이도록 했습니다.</p>
       </header>
 
@@ -547,7 +596,7 @@ function WorldPage() {
   );
 }
 
-function Board({ addBoardCard, drafts, removeBoardCard, savedBoard, updateDraft }) {
+function Board({ addBoardCard, boardColumns, drafts, removeBoardCard, savedBoard, updateDraft }) {
   return (
     <div className="page-stack">
       <header className="page-header compact">
@@ -610,12 +659,12 @@ function Board({ addBoardCard, drafts, removeBoardCard, savedBoard, updateDraft 
   );
 }
 
-function Sources() {
+function Sources({ activeStory, sourceFiles }) {
   return (
     <div className="page-stack">
       <header className="page-header compact">
         <p className="eyebrow">Source analysis</p>
-        <h2>{currentStory.title} 원고 분석</h2>
+        <h2>{activeStory.title} 원고 분석</h2>
         <p>각 원고가 장편 설계에서 담당하는 역할과 앞으로 보강할 지점을 정리했습니다.</p>
       </header>
 
