@@ -201,3 +201,73 @@ export function getDashboardWarnings(project) {
 
   return warnings;
 }
+
+export function getCharacterEpisodeAppearances(project, characterId) {
+  return [...(project.episodes ?? [])]
+    .filter((episode) => episode.characterIds?.includes(characterId))
+    .sort((a, b) => Number(a.number) - Number(b.number));
+}
+
+export function getCharacterLastAppearance(project, characterId) {
+  const appearances = getCharacterEpisodeAppearances(project, characterId);
+  return appearances.at(-1) ?? null;
+}
+
+export function getCharacterForeshadows(project, characterId) {
+  const character = (project.characters ?? []).find((item) => item.id === characterId);
+  const appearances = getCharacterEpisodeAppearances(project, characterId);
+  const episodeForeshadowIds = new Set(appearances.flatMap((episode) => episode.foreshadowIds ?? []));
+  const directForeshadowIds = new Set(character?.relatedForeshadowIds ?? []);
+
+  return (project.foreshadows ?? []).filter(
+    (foreshadow) =>
+      foreshadow.relatedCharacterIds?.includes(characterId) ||
+      directForeshadowIds.has(foreshadow.id) ||
+      episodeForeshadowIds.has(foreshadow.id)
+  );
+}
+
+export function getCharacterFactions(project, characterId) {
+  const character = (project.characters ?? []).find((item) => item.id === characterId);
+  const appearances = getCharacterEpisodeAppearances(project, characterId);
+  const episodeFactionIds = new Set(appearances.flatMap((episode) => episode.factionIds ?? []));
+  const directFactionIds = new Set(character?.relatedFactionIds ?? []);
+
+  return (project.factions ?? []).filter(
+    (faction) =>
+      faction.relatedCharacterIds?.includes(characterId) ||
+      directFactionIds.has(faction.id) ||
+      episodeFactionIds.has(faction.id)
+  );
+}
+
+export function getInactiveCharacters(project, threshold = 20) {
+  const latestEpisode = maxEpisodeNumber(project);
+  const importantValues = new Set(["주연", "빌런"]);
+
+  return (project.characters ?? [])
+    .map((character) => ({
+      character,
+      lastEpisode: getCharacterLastAppearance(project, character.id)?.number ?? character.lastEpisode ?? ""
+    }))
+    .filter(({ character, lastEpisode }) => importantValues.has(character.importance) && lastEpisode && latestEpisode - Number(lastEpisode) >= threshold);
+}
+
+export function getCharacterCardStats(project, characterId) {
+  const appearances = getCharacterEpisodeAppearances(project, characterId);
+  const foreshadows = getCharacterForeshadows(project, characterId);
+  const factions = getCharacterFactions(project, characterId);
+  const character = (project.characters ?? []).find((item) => item.id === characterId);
+  const directWorldItemIds = new Set(character?.relatedWorldItemIds ?? []);
+  const worldItems = (project.worldItems ?? []).filter((item) => item.relatedCharacterIds?.includes(characterId) || directWorldItemIds.has(item.id));
+
+  return {
+    appearances,
+    appearanceCount: appearances.length,
+    firstEpisode: appearances[0]?.number ?? "",
+    lastEpisode: appearances.at(-1)?.number ?? "",
+    foreshadowCount: foreshadows.length,
+    factionCount: factions.length,
+    worldItemCount: worldItems.length
+  };
+}

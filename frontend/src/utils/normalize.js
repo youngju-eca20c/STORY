@@ -21,6 +21,8 @@ export const episodeTags = [
 
 export const foreshadowStatuses = ["미회수", "부분 회수", "완전 회수", "폐기"];
 export const characterImportance = ["주연", "조연", "단역", "빌런", "조력자"];
+export const characterStatuses = ["생존", "사망", "실종", "배신", "봉인", "퇴장", "미정"];
+export const relationshipTypes = ["동료", "상관", "부하", "적", "가족", "은인", "라이벌", "배신 관계", "애증", "미정"];
 export const timelineTypes = ["세계관", "회차진행", "캐릭터과거", "세력사건"];
 export const worldCategories = ["지역", "국가", "종족", "조직", "마법", "경제", "역사", "지명", "법칙", "종교", "전쟁", "물건"];
 
@@ -110,26 +112,89 @@ function inferTimelineType(item) {
   return "회차진행";
 }
 
+function normalizeCharacterRelationships(character = {}) {
+  const explicitRelations = Array.isArray(character.relationships) ? character.relationships : [];
+  const relatedIds = uniq([
+    ...(character.relatedCharacterIds ?? []),
+    ...explicitRelations.map((relation) => relation.characterId)
+  ]);
+
+  return {
+    relatedCharacterIds: relatedIds,
+    relationships: relatedIds.map((characterId) => {
+      const existing = explicitRelations.find((relation) => relation.characterId === characterId);
+      return {
+        characterId,
+        type: existing?.type ?? "미정",
+        memo: existing?.memo ?? ""
+      };
+    })
+  };
+}
+
 function normalizeCharacters(characters = []) {
-  return characters.map((character, index) => ({
-    id: makeId("char", character.name || index),
-    name: character.name ?? `인물 ${index + 1}`,
-    role: character.role ?? "",
-    status: character.status ?? "",
-    wound: character.wound ?? "",
-    desire: character.desire ?? "",
-    power: character.power ?? "",
-    arc: character.arc ?? "",
-    tags: character.tags ?? [],
-    spec: character.spec ?? {},
-    relationshipNotes: character.relationshipNotes ?? "",
-    firstEpisode: character.firstEpisode ?? "",
-    lastEpisode: character.lastEpisode ?? "",
-    importance: character.importance ?? inferImportance(character),
-    relatedForeshadowIds: character.relatedForeshadowIds ?? [],
-    memo: character.memo ?? "",
-    updatedAt: character.updatedAt ?? now()
-  }));
+  return characters.map((character, index) => {
+    const spec = character.spec ?? {};
+    const relationships = normalizeCharacterRelationships(character);
+    const colors = spec.colors ?? "";
+
+    return {
+      id: character.id ?? makeId("char", character.name || index),
+      name: character.name ?? `인물 ${index + 1}`,
+      alias: character.alias ?? "",
+      role: character.role ?? "",
+      importance: character.importance ?? inferImportance(character),
+      status: characterStatuses.includes(character.status) ? character.status : character.status || "생존",
+      avatarDataUrl: character.avatarDataUrl ?? "",
+      avatarPrompt: character.avatarPrompt ?? "",
+      firstEpisode: character.firstEpisode ?? "",
+      lastEpisode: character.lastEpisode ?? "",
+      age: character.age ?? spec.age ?? "",
+      gender: character.gender ?? "",
+      species: character.species ?? "",
+      affiliation: character.affiliation ?? "",
+      job: character.job ?? "",
+      appearanceSummary: character.appearanceSummary ?? spec.appearance ?? "",
+      height: character.height ?? spec.height ?? "",
+      bodyType: character.bodyType ?? "",
+      hair: character.hair ?? colors,
+      eyes: character.eyes ?? colors,
+      outfit: character.outfit ?? "",
+      firstImpression: character.firstImpression ?? "",
+      symbolMotif: character.symbolMotif ?? "",
+      visualKeywords: character.visualKeywords ?? [],
+      personality: character.personality ?? "",
+      speechStyle: character.speechStyle ?? "",
+      catchphrase: character.catchphrase ?? "",
+      desire: character.desire ?? "",
+      fear: character.fear ?? "",
+      weakness: character.weakness ?? "",
+      wound: character.wound ?? "",
+      secret: character.secret ?? "",
+      contradiction: character.contradiction ?? "",
+      value: character.value ?? "",
+      characterArc: character.characterArc ?? character.arc ?? "",
+      startState: character.startState ?? "",
+      endState: character.endState ?? "",
+      growthTrigger: character.growthTrigger ?? "",
+      keyChoice: character.keyChoice ?? "",
+      narrativeFunction: character.narrativeFunction ?? character.power ?? "",
+      readerImpression: character.readerImpression ?? "",
+      relationshipNotes: character.relationshipNotes ?? "",
+      relatedCharacterIds: relationships.relatedCharacterIds,
+      relationships: relationships.relationships,
+      relatedFactionIds: character.relatedFactionIds ?? [],
+      relatedForeshadowIds: character.relatedForeshadowIds ?? [],
+      relatedWorldItemIds: character.relatedWorldItemIds ?? [],
+      tags: character.tags ?? [],
+      memo: character.memo ?? "",
+      createdAt: character.createdAt ?? now(),
+      updatedAt: character.updatedAt ?? now(),
+      spec,
+      power: character.power ?? "",
+      arc: character.arc ?? character.characterArc ?? ""
+    };
+  });
 }
 
 function normalizeFactions(factions = [], characters = []) {
@@ -391,7 +456,7 @@ export function ensureProjectShape(project) {
     themes: project?.themes ?? seedProject?.themes ?? [],
     arcs: project?.arcs ?? seedProject?.arcs ?? [],
     episodes: project?.episodes ?? seedProject?.episodes ?? [],
-    characters: project?.characters ?? seedProject?.characters ?? [],
+    characters: normalizeCharacters(project?.characters ?? seedProject?.characters ?? []),
     factions: project?.factions ?? seedProject?.factions ?? [],
     worldItems: project?.worldItems ?? seedProject?.worldItems ?? [],
     timeline: project?.timeline ?? seedProject?.timeline ?? [],

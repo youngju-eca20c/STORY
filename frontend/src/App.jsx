@@ -2,24 +2,32 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { appMeta, storyProjects } from "./data/storyData";
 import {
+  getCharacterCardStats,
+  getCharacterEpisodeAppearances,
   getCharacterAppearanceCounts,
   getDashboardWarnings,
   getEpisodeProgress,
   getEpisodeStatusCounts,
   getForeshadowStats,
+  getCharacterFactions,
+  getCharacterForeshadows,
+  getCharacterLastAppearance,
   getInactiveMainCharacters,
   getStaleForeshadows,
   getTagCounts
 } from "./utils/analytics";
 import {
   characterImportance,
+  characterStatuses,
   episodeStatuses,
   episodeTags,
   foreshadowStatuses,
   makeId,
+  relationshipTypes,
   timelineTypes,
   worldCategories
 } from "./utils/normalize";
+import { removeCharacterAvatar, resizeImageToDataUrl, validateImageFile } from "./utils/image";
 import { buildSearchResults } from "./utils/search";
 import {
   downloadJson,
@@ -42,6 +50,18 @@ const pages = [
   { id: "sources", label: "원고 분석", short: "SC" },
   { id: "search", label: "전체 검색", short: "SR" }
 ];
+
+const characterTabs = [
+  { id: "profile", label: "기본 프로필" },
+  { id: "appearance", label: "외형" },
+  { id: "voice", label: "성격 / 말투" },
+  { id: "arc", label: "서사 아크" },
+  { id: "relationships", label: "관계" },
+  { id: "episodes", label: "등장 회차" },
+  { id: "lore", label: "떡밥 / 세계관" }
+];
+
+const majorCharacterImportance = new Set(["주연", "빌런", "조력자"]);
 
 const now = () => new Date().toISOString();
 
@@ -181,7 +201,8 @@ export default function App() {
     updateCollectionItem,
     addCollectionItem,
     deleteCollectionItem,
-    navigateTo
+    navigateTo,
+    setToast
   };
 
   return (
@@ -719,7 +740,7 @@ function ForeshadowEditor({ foreshadow, navigateTo, project, onDelete, onUpdate 
   );
 }
 
-function CharactersPage({ project, selectedIds, setSelectedIds, updateCollectionItem, addCollectionItem, deleteCollectionItem, navigateTo }) {
+function LegacyCharactersPage({ project, selectedIds, setSelectedIds, updateCollectionItem, addCollectionItem, deleteCollectionItem, navigateTo }) {
   const [query, setQuery] = useState("");
   const [importanceFilter, setImportanceFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("all");
@@ -830,7 +851,7 @@ function CharactersPage({ project, selectedIds, setSelectedIds, updateCollection
   );
 }
 
-function CharacterEditor({ character, navigateTo, project, onDelete, onUpdate }) {
+function LegacyCharacterEditor({ character, navigateTo, project, onDelete, onUpdate }) {
   if (!character) return <EditorShell title="캐릭터 선택" description="왼쪽에서 캐릭터를 선택하세요." />;
 
   const appearanceEpisodes = project.episodes.filter((episode) => episode.characterIds?.includes(character.id));
@@ -877,6 +898,595 @@ function CharacterEditor({ character, navigateTo, project, onDelete, onUpdate })
       <MiniList title="연결 세력" items={relatedFactions.map((faction) => faction.name)} />
     </EditorShell>
   );
+}
+
+function CharactersPage({ project, selectedIds, setSelectedIds, updateCollectionItem, addCollectionItem, updateProject, navigateTo, setToast }) {
+  const [query, setQuery] = useState("");
+  const [importanceFilter, setImportanceFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [tagFilter, setTagFilter] = useState("all");
+  const [affiliationFilter, setAffiliationFilter] = useState("all");
+  const [onlyMajor, setOnlyMajor] = useState(false);
+  const [sortMode, setSortMode] = useState("updated");
+  const inactive = getInactiveMainCharacters(project);
+  const tags = [...new Set(project.characters.flatMap((character) => character.tags ?? []))].sort();
+  const affiliations = [...new Set(project.characters.map((character) => character.affiliation).filter(Boolean))].sort();
+  const statsById = useMemo(
+    () => new Map(project.characters.map((character) => [character.id, getCharacterCardStats(project, character.id)])),
+    [project]
+  );
+
+  const filtered = project.characters
+    .filter((character) => {
+      const normalized = query.trim().toLowerCase();
+      const searchable = [
+        character.name,
+        character.alias,
+        character.role,
+        character.affiliation,
+        character.job,
+        character.desire,
+        character.characterArc,
+        character.appearanceSummary,
+        ...(character.tags ?? [])
+      ]
+        .join(" ")
+        .toLowerCase();
+      const matchesQuery = !normalized || searchable.includes(normalized);
+      const matchesImportance = importanceFilter === "all" || character.importance === importanceFilter;
+      const matchesStatus = statusFilter === "all" || character.status === statusFilter;
+      const matchesTag = tagFilter === "all" || character.tags?.includes(tagFilter);
+      const matchesAffiliation = affiliationFilter === "all" || character.affiliation === affiliationFilter;
+      const matchesMajor = !onlyMajor || majorCharacterImportance.has(character.importance);
+
+      return matchesQuery && matchesImportance && matchesStatus && matchesTag && matchesAffiliation && matchesMajor;
+    })
+    .sort((a, b) => {
+      if (sortMode === "name") return a.name.localeCompare(b.name, "ko");
+      if (sortMode === "first") return (Number(a.firstEpisode) || 9999) - (Number(b.firstEpisode) || 9999);
+      if (sortMode === "appearances") return (statsById.get(b.id)?.appearanceCount ?? 0) - (statsById.get(a.id)?.appearanceCount ?? 0);
+      return new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime();
+    });
+
+  const selected = project.characters.find((character) => character.id === selectedIds.characters) ?? filtered[0] ?? project.characters[0];
+
+  function addCharacter() {
+    const id = makeId("char", `new-${Date.now()}`);
+    addCollectionItem("characters", createDefaultCharacter(id), "characters");
+  }
+
+  function removeCharacter(characterId) {
+    const character = project.characters.find((item) => item.id === characterId);
+    if (!character || !window.confirm(`${character.name} 캐릭터를 삭제할까요? 연결된 회차/떡밥/세력에서도 함께 제거됩니다.`)) return;
+
+    const removeId = (ids = []) => ids.filter((id) => id !== characterId);
+    updateProject((current) => ({
+      ...current,
+      characters: current.characters
+        .filter((item) => item.id !== characterId)
+        .map((item) => ({
+          ...item,
+          relatedCharacterIds: removeId(item.relatedCharacterIds),
+          relationships: (item.relationships ?? []).filter((relation) => relation.characterId !== characterId)
+        })),
+      episodes: current.episodes.map((episode) => ({ ...episode, characterIds: removeId(episode.characterIds) })),
+      foreshadows: current.foreshadows.map((foreshadow) => ({ ...foreshadow, relatedCharacterIds: removeId(foreshadow.relatedCharacterIds) })),
+      factions: current.factions.map((faction) => ({ ...faction, relatedCharacterIds: removeId(faction.relatedCharacterIds) })),
+      worldItems: current.worldItems.map((item) => ({ ...item, relatedCharacterIds: removeId(item.relatedCharacterIds) })),
+      timeline: current.timeline.map((item) => ({ ...item, relatedCharacterIds: removeId(item.relatedCharacterIds) }))
+    }));
+    setSelectedIds((current) => ({ ...current, characters: "" }));
+    setToast?.("캐릭터를 삭제하고 연결 데이터를 정리했습니다.");
+  }
+
+  return (
+    <PageShell
+      actions={<Button onClick={addCharacter}>캐릭터 추가</Button>}
+      description="외형, 말투, 관계, 등장 회차, 떡밥을 한 번에 운영하는 인물 바이블입니다."
+      eyebrow="Character Bible"
+      title="캐릭터 운영실"
+    >
+      {inactive.length ? <div className="warning-band">최근 20화 이상 등장하지 않은 주요 캐릭터 {inactive.length}명이 있습니다.</div> : null}
+      <section className="character-studio">
+        <div className="character-directory">
+          <Card className="character-toolbar">
+            <SearchInput value={query} onChange={setQuery} placeholder="이름, 별칭, 역할, 욕망, 태그 검색" />
+            <SelectField label="중요도" value={importanceFilter} onChange={setImportanceFilter}>
+              <option value="all">전체 중요도</option>
+              {characterImportance.map((importance) => (
+                <option key={importance} value={importance}>
+                  {importance}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField label="상태" value={statusFilter} onChange={setStatusFilter}>
+              <option value="all">전체 상태</option>
+              {characterStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField label="태그" value={tagFilter} onChange={setTagFilter}>
+              <option value="all">전체 태그</option>
+              {tags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField label="소속" value={affiliationFilter} onChange={setAffiliationFilter}>
+              <option value="all">전체 소속</option>
+              {affiliations.map((affiliation) => (
+                <option key={affiliation} value={affiliation}>
+                  {affiliation}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField label="정렬" value={sortMode} onChange={setSortMode}>
+              <option value="updated">최근 수정순</option>
+              <option value="name">이름순</option>
+              <option value="first">첫 등장순</option>
+              <option value="appearances">등장 회차 많은 순</option>
+            </SelectField>
+            <label className="toggle-field">
+              <input checked={onlyMajor} type="checkbox" onChange={(event) => setOnlyMajor(event.target.checked)} />
+              <span>주요 인물만 보기</span>
+            </label>
+          </Card>
+
+          {filtered.length ? (
+            <div className="character-card-grid">
+              {filtered.map((character) => (
+                <CharacterCard
+                  character={character}
+                  key={character.id}
+                  selected={selected?.id === character.id}
+                  stats={statsById.get(character.id)}
+                  onSelect={() => setSelectedIds((current) => ({ ...current, characters: character.id }))}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="조건에 맞는 캐릭터가 없습니다" description="검색어나 필터를 조금 넓혀 보세요." />
+          )}
+        </div>
+
+        <CharacterEditor
+          character={selected}
+          navigateTo={navigateTo}
+          project={project}
+          onDelete={() => selected && removeCharacter(selected.id)}
+          onUpdate={(patch) => updateCollectionItem("characters", selected.id, patch)}
+        />
+      </section>
+    </PageShell>
+  );
+}
+
+function createDefaultCharacter(id) {
+  return {
+    id,
+    name: "새 캐릭터",
+    alias: "",
+    role: "",
+    importance: "조연",
+    status: "생존",
+    avatarDataUrl: "",
+    avatarPrompt: "",
+    firstEpisode: "",
+    lastEpisode: "",
+    age: "",
+    gender: "",
+    species: "",
+    affiliation: "",
+    job: "",
+    appearanceSummary: "",
+    height: "",
+    bodyType: "",
+    hair: "",
+    eyes: "",
+    outfit: "",
+    firstImpression: "",
+    symbolMotif: "",
+    visualKeywords: [],
+    personality: "",
+    speechStyle: "",
+    catchphrase: "",
+    desire: "",
+    fear: "",
+    weakness: "",
+    wound: "",
+    secret: "",
+    contradiction: "",
+    value: "",
+    characterArc: "",
+    startState: "",
+    endState: "",
+    growthTrigger: "",
+    keyChoice: "",
+    narrativeFunction: "",
+    readerImpression: "",
+    relationshipNotes: "",
+    relatedCharacterIds: [],
+    relationships: [],
+    relatedFactionIds: [],
+    relatedForeshadowIds: [],
+    relatedWorldItemIds: [],
+    tags: [],
+    memo: "",
+    createdAt: now(),
+    updatedAt: now()
+  };
+}
+
+function CharacterCard({ character, onSelect, selected, stats }) {
+  const firstEpisode = stats?.firstEpisode || character.firstEpisode || "-";
+  const lastEpisode = stats?.lastEpisode || character.lastEpisode || "-";
+
+  return (
+    <button className={selected ? "character-profile-card active" : "character-profile-card"} type="button" onClick={onSelect}>
+      <CharacterAvatar character={character} size="card" />
+      <div className="character-card-body">
+        <div className="character-card-head">
+          <div>
+            <h3>{character.name}</h3>
+            <p>{character.alias || character.role || "역할 미정"}</p>
+          </div>
+          <Badge tone={importanceTone(character.importance)}>{character.importance}</Badge>
+        </div>
+        <div className="chip-strip">
+          <Badge tone={characterStatusTone(character.status)}>{character.status || "미정"}</Badge>
+          {character.affiliation ? <Badge tone="muted">{character.affiliation}</Badge> : null}
+        </div>
+        <p className="character-desire">{character.desire || character.memo || "핵심 욕망을 정리해 주세요."}</p>
+        <div className="character-card-stats">
+          <span>첫 등장 {firstEpisode}</span>
+          <span>최근 {lastEpisode}</span>
+          <span>등장 {stats?.appearanceCount ?? 0}</span>
+          <span>떡밥 {stats?.foreshadowCount ?? 0}</span>
+        </div>
+        <div className="tag-row compact">
+          {(character.tags ?? []).slice(0, 4).map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function CharacterEditor({ character, navigateTo, project, onDelete, onUpdate }) {
+  const [activeTab, setActiveTab] = useState("profile");
+  const [avatarNotice, setAvatarNotice] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    setActiveTab("profile");
+    setAvatarNotice("");
+  }, [character?.id]);
+
+  if (!character) return <EditorShell title="캐릭터 선택" description="왼쪽에서 캐릭터를 선택하세요." />;
+
+  const appearanceEpisodes = getCharacterEpisodeAppearances(project, character.id);
+  const lastAppearance = getCharacterLastAppearance(project, character.id);
+  const relatedForeshadows = getCharacterForeshadows(project, character.id);
+  const relatedFactions = getCharacterFactions(project, character.id);
+  const relatedWorldItems = project.worldItems.filter(
+    (item) => item.relatedCharacterIds?.includes(character.id) || character.relatedWorldItemIds?.includes(item.id)
+  );
+  const latestEpisode = Math.max(0, ...project.episodes.map((episode) => Number(episode.number) || 0));
+  const inactive = majorCharacterImportance.has(character.importance) && lastAppearance?.number && latestEpisode - Number(lastAppearance.number) >= 20;
+  const relatedCharacters = project.characters.filter((item) => item.id !== character.id);
+
+  async function handleAvatarUpload(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    const validation = validateImageFile(file);
+    if (!validation.ok) {
+      setAvatarNotice(validation.message);
+      return;
+    }
+
+    try {
+      const result = await resizeImageToDataUrl(file);
+      onUpdate({ avatarDataUrl: result.dataUrl });
+      setAvatarNotice(
+        result.storedBytes > 700000
+          ? "압축 후에도 이미지 용량이 큰 편입니다. localStorage 여유 공간을 확인해 주세요."
+          : "이미지를 512px 이하로 압축해 브라우저에만 저장했습니다."
+      );
+    } catch (error) {
+      setAvatarNotice(error.message || "이미지 처리에 실패했습니다.");
+    }
+  }
+
+  function updateRelatedCharacters(ids) {
+    const existing = character.relationships ?? [];
+    onUpdate({
+      relatedCharacterIds: ids,
+      relationships: ids.map((characterId) => {
+        const relation = existing.find((item) => item.characterId === characterId);
+        return { characterId, type: relation?.type ?? "미정", memo: relation?.memo ?? "" };
+      })
+    });
+  }
+
+  function updateRelationship(characterId, patch) {
+    const relationships = character.relatedCharacterIds.map((id) => {
+      const relation = (character.relationships ?? []).find((item) => item.characterId === id);
+      return id === characterId
+        ? { characterId: id, type: relation?.type ?? "미정", memo: relation?.memo ?? "", ...patch }
+        : { characterId: id, type: relation?.type ?? "미정", memo: relation?.memo ?? "" };
+    });
+    onUpdate({ relationships });
+  }
+
+  return (
+    <aside className="character-detail-panel">
+      <div className="character-hero">
+        <CharacterAvatar character={character} size="hero" />
+        <div className="character-hero-main">
+          <div className="character-hero-title">
+            <p className="eyebrow">Character Profile</p>
+            <h3>{character.name}</h3>
+            <p>{character.alias || character.role || "아직 별칭과 역할이 정해지지 않았습니다."}</p>
+          </div>
+          <div className="chip-strip">
+            <Badge tone={importanceTone(character.importance)}>{character.importance}</Badge>
+            <Badge tone={characterStatusTone(character.status)}>{character.status || "미정"}</Badge>
+            {character.affiliation ? <Badge tone="muted">{character.affiliation}</Badge> : null}
+          </div>
+          <div className="character-hero-actions">
+            <input ref={inputRef} accept="image/*" className="visually-hidden" type="file" onChange={handleAvatarUpload} />
+            <Button tone="secondary" onClick={() => inputRef.current?.click()}>이미지 변경</Button>
+            {character.avatarDataUrl ? <Button tone="ghost" onClick={() => onUpdate(removeCharacterAvatar(character.id))}>이미지 삭제</Button> : null}
+            <Button tone="danger" onClick={onDelete}>삭제</Button>
+          </div>
+          <small className="avatar-note">
+            업로드 이미지는 서버로 전송되지 않고 512px 이하 dataURL로 압축되어 이 브라우저의 localStorage에만 저장됩니다.
+          </small>
+          {avatarNotice ? <p className="avatar-warning">{avatarNotice}</p> : null}
+        </div>
+      </div>
+
+      <div className="character-meta-strip">
+        <CharacterMetaTile label="첫 등장" value={character.firstEpisode || appearanceEpisodes[0]?.number || "-"} />
+        <CharacterMetaTile label="최근 등장" value={lastAppearance?.number || character.lastEpisode || "-"} />
+        <CharacterMetaTile label="등장 회차" value={appearanceEpisodes.length} />
+        <CharacterMetaTile label="최근 수정" value={formatDate(character.updatedAt)} />
+      </div>
+
+      <nav className="character-tabs" aria-label="캐릭터 상세 탭">
+        {characterTabs.map((tab) => (
+          <button className={activeTab === tab.id ? "active" : ""} key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="character-tab-body">
+        {activeTab === "profile" ? (
+          <div className="tab-panel">
+            <div className="editor-grid">
+              <TextField label="이름" value={character.name} onChange={(value) => onUpdate({ name: value })} />
+              <TextField label="별칭" value={character.alias} onChange={(value) => onUpdate({ alias: value })} />
+              <TextField label="역할" value={character.role} onChange={(value) => onUpdate({ role: value })} />
+              <SelectField label="중요도" value={character.importance} onChange={(value) => onUpdate({ importance: value })}>
+                {characterImportance.map((importance) => (
+                  <option key={importance} value={importance}>
+                    {importance}
+                  </option>
+                ))}
+              </SelectField>
+              <SelectField label="상태" value={character.status} onChange={(value) => onUpdate({ status: value })}>
+                {characterStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </SelectField>
+              <TextField label="종족" value={character.species} onChange={(value) => onUpdate({ species: value })} />
+              <TextField label="성별" value={character.gender} onChange={(value) => onUpdate({ gender: value })} />
+              <TextField label="나이" value={character.age} onChange={(value) => onUpdate({ age: value })} />
+              <TextField label="직업" value={character.job} onChange={(value) => onUpdate({ job: value })} />
+              <TextField label="소속" value={character.affiliation} onChange={(value) => onUpdate({ affiliation: value })} />
+              <TextField label="첫 등장 회차" type="number" value={character.firstEpisode} onChange={(value) => onUpdate({ firstEpisode: toNumberOrBlank(value) })} />
+              <TextField label="마지막 등장 회차" type="number" value={character.lastEpisode} onChange={(value) => onUpdate({ lastEpisode: toNumberOrBlank(value) })} />
+            </div>
+            <TextField label="태그" value={(character.tags ?? []).join(", ")} onChange={(value) => onUpdate({ tags: parseTextList(value) })} />
+            <TextArea label="한 줄 소개 / 메모" rows={3} value={character.memo} onChange={(value) => onUpdate({ memo: value })} />
+          </div>
+        ) : null}
+
+        {activeTab === "appearance" ? (
+          <div className="tab-panel">
+            <TextArea label="외형 요약" rows={4} value={character.appearanceSummary} onChange={(value) => onUpdate({ appearanceSummary: value })} />
+            <div className="editor-grid">
+              <TextField label="신장" value={character.height} onChange={(value) => onUpdate({ height: value })} />
+              <TextField label="체형" value={character.bodyType} onChange={(value) => onUpdate({ bodyType: value })} />
+              <TextField label="머리" value={character.hair} onChange={(value) => onUpdate({ hair: value })} />
+              <TextField label="눈" value={character.eyes} onChange={(value) => onUpdate({ eyes: value })} />
+            </div>
+            <TextArea label="복장" rows={3} value={character.outfit} onChange={(value) => onUpdate({ outfit: value })} />
+            <TextArea label="첫인상" rows={3} value={character.firstImpression} onChange={(value) => onUpdate({ firstImpression: value })} />
+            <TextField label="상징 motif" value={character.symbolMotif} onChange={(value) => onUpdate({ symbolMotif: value })} />
+            <TextField label="시각적 키워드" value={(character.visualKeywords ?? []).join(", ")} onChange={(value) => onUpdate({ visualKeywords: parseTextList(value) })} />
+            <TextArea label="이미지 생성용 프롬프트" rows={4} value={character.avatarPrompt} onChange={(value) => onUpdate({ avatarPrompt: value })} />
+          </div>
+        ) : null}
+
+        {activeTab === "voice" ? (
+          <div className="tab-panel">
+            <TextArea label="성격" rows={4} value={character.personality} onChange={(value) => onUpdate({ personality: value })} />
+            <TextArea label="말투 특징" rows={3} value={character.speechStyle} onChange={(value) => onUpdate({ speechStyle: value })} />
+            <TextField label="자주 쓰는 말" value={character.catchphrase} onChange={(value) => onUpdate({ catchphrase: value })} />
+            <TextArea label="가치관" value={character.value} onChange={(value) => onUpdate({ value })} />
+            <TextArea label="욕망" value={character.desire} onChange={(value) => onUpdate({ desire: value })} />
+            <TextArea label="두려움" value={character.fear} onChange={(value) => onUpdate({ fear: value })} />
+            <TextArea label="약점" value={character.weakness} onChange={(value) => onUpdate({ weakness: value })} />
+            <TextArea label="모순점" value={character.contradiction} onChange={(value) => onUpdate({ contradiction: value })} />
+            <TextArea label="비밀" value={character.secret} onChange={(value) => onUpdate({ secret: value })} />
+          </div>
+        ) : null}
+
+        {activeTab === "arc" ? (
+          <div className="tab-panel">
+            <TextArea label="시작 상태" value={character.startState} onChange={(value) => onUpdate({ startState: value })} />
+            <TextArea label="상처" value={character.wound} onChange={(value) => onUpdate({ wound: value })} />
+            <TextArea label="성장 계기" value={character.growthTrigger} onChange={(value) => onUpdate({ growthTrigger: value })} />
+            <TextArea label="핵심 선택" value={character.keyChoice} onChange={(value) => onUpdate({ keyChoice: value })} />
+            <TextArea label="캐릭터 아크" rows={4} value={character.characterArc} onChange={(value) => onUpdate({ characterArc: value, arc: value })} />
+            <TextArea label="최종 상태" value={character.endState} onChange={(value) => onUpdate({ endState: value })} />
+            <TextArea label="작중에서 맡는 기능" value={character.narrativeFunction} onChange={(value) => onUpdate({ narrativeFunction: value })} />
+            <TextArea label="독자에게 주는 인상" value={character.readerImpression} onChange={(value) => onUpdate({ readerImpression: value })} />
+          </div>
+        ) : null}
+
+        {activeTab === "relationships" ? (
+          <div className="tab-panel">
+            <CheckGroup label="관련 캐릭터" options={relatedCharacters} values={character.relatedCharacterIds} onChange={updateRelatedCharacters} />
+            <div className="relationship-editor-list">
+              {(character.relatedCharacterIds ?? []).map((characterId) => {
+                const other = project.characters.find((item) => item.id === characterId);
+                const relation = (character.relationships ?? []).find((item) => item.characterId === characterId) ?? { type: "미정", memo: "" };
+                if (!other) return null;
+
+                return (
+                  <div className="relationship-row" key={characterId}>
+                    <div>
+                      <strong>{other.name}</strong>
+                      <span>{other.role || other.importance}</span>
+                    </div>
+                    <SelectField value={relation.type} onChange={(value) => updateRelationship(characterId, { type: value })}>
+                      {relationshipTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <TextField label="관계 메모" value={relation.memo} onChange={(value) => updateRelationship(characterId, { memo: value })} />
+                  </div>
+                );
+              })}
+            </div>
+            <CheckGroup label="관련 세력" options={project.factions} values={character.relatedFactionIds} onChange={(relatedFactionIds) => onUpdate({ relatedFactionIds })} />
+            <TextArea label="관계 메모" rows={4} value={character.relationshipNotes} onChange={(value) => onUpdate({ relationshipNotes: value })} />
+            <MiniList title="자동 연결 세력" items={relatedFactions.map((faction) => faction.name)} />
+          </div>
+        ) : null}
+
+        {activeTab === "episodes" ? (
+          <div className="tab-panel">
+            {inactive ? <div className="warning-band compact">주요 인물인데 최근 20화 이상 등장하지 않았습니다.</div> : null}
+            {appearanceEpisodes.length ? (
+              <div className="episode-appearance-list">
+                {appearanceEpisodes.map((episode) => (
+                  <button key={episode.id} type="button" onClick={() => navigateTo({ page: "episodes", id: episode.id })}>
+                    <strong>{episode.number}화</strong>
+                    <span>{episode.title}</span>
+                    <Badge tone="muted">{episode.status}</Badge>
+                    <div className="tag-row compact">
+                      {(episode.tags ?? []).slice(0, 3).map((tag) => (
+                        <i key={tag}>{tag}</i>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="아직 연결된 등장 회차가 없습니다" description="회차 관리에서 관련 캐릭터로 연결하면 자동으로 표시됩니다." />
+            )}
+          </div>
+        ) : null}
+
+        {activeTab === "lore" ? (
+          <div className="tab-panel">
+            <CheckGroup label="관련 떡밥" options={project.foreshadows} values={character.relatedForeshadowIds} onChange={(relatedForeshadowIds) => onUpdate({ relatedForeshadowIds })} />
+            <CheckGroup label="관련 세계관" options={project.worldItems} values={character.relatedWorldItemIds} onChange={(relatedWorldItemIds) => onUpdate({ relatedWorldItemIds })} />
+            <div className="lore-link-grid">
+              <div>
+                <SectionTitle eyebrow="Foreshadow" title="연결된 떡밥" />
+                {relatedForeshadows.length ? (
+                  relatedForeshadows.map((item) => (
+                    <div className={item.status === "완전 회수" || item.status === "폐기" ? "lore-link-card" : "lore-link-card unresolved"} key={item.id}>
+                      <strong>{item.title}</strong>
+                      <Badge tone={item.status === "완전 회수" ? "success" : "warning"}>{item.status}</Badge>
+                      <p>{item.description}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted-text">연결된 떡밥이 없습니다.</p>
+                )}
+              </div>
+              <div>
+                <SectionTitle eyebrow="World" title="관련 세계관" />
+                {relatedWorldItems.length ? (
+                  relatedWorldItems.map((item) => (
+                    <div className="lore-link-card" key={item.id}>
+                      <strong>{item.name}</strong>
+                      <Badge tone="info">{item.category}</Badge>
+                      <p>{item.description}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted-text">연결된 세계관 설정이 없습니다.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </aside>
+  );
+}
+
+function CharacterAvatar({ character, size = "card" }) {
+  const initial = (character.name || "?").trim().slice(0, 1);
+
+  return (
+    <div className={`character-avatar ${size}`}>
+      {character.avatarDataUrl ? (
+        <img alt={`${character.name} 프로필`} src={character.avatarDataUrl} />
+      ) : (
+        <div className="avatar-fallback">
+          <span>{initial}</span>
+          <small>{character.symbolMotif || character.importance || "ST"}</small>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CharacterMetaTile({ label, value }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function importanceTone(importance) {
+  if (importance === "주연") return "accent";
+  if (importance === "빌런") return "danger";
+  if (importance === "조력자") return "success";
+  if (importance === "단역") return "muted";
+  return "info";
+}
+
+function characterStatusTone(status) {
+  if (status === "생존") return "success";
+  if (status === "사망" || status === "배신") return "danger";
+  if (status === "실종" || status === "봉인") return "warning";
+  if (status === "퇴장") return "muted";
+  return "info";
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+
+  return new Intl.DateTimeFormat("ko-KR", { month: "2-digit", day: "2-digit" }).format(new Date(value));
 }
 
 function FactionsPage({ project, selectedIds, setSelectedIds, updateCollectionItem, addCollectionItem, deleteCollectionItem, navigateTo }) {
