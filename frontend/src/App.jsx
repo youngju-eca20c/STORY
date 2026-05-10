@@ -981,60 +981,60 @@ function CharactersPage({ project, selectedIds, setSelectedIds, updateCollection
 
   return (
     <PageShell
-      actions={<Button onClick={addCharacter}>캐릭터 추가</Button>}
-      description="외형, 말투, 관계, 등장 회차, 떡밥을 한 번에 운영하는 인물 바이블입니다."
-      eyebrow="Character Bible"
-      title="캐릭터 운영실"
+      actions={<Button onClick={addCharacter}>+ 캐릭터 추가</Button>}
+      className="characters-page"
+      description="등장 회차, 중요도, 관계, 떡밥 연결까지 함께 관리합니다."
+      eyebrow="Characters"
+      title="캐릭터 관리"
     >
       {inactive.length ? <div className="warning-band">최근 20화 이상 등장하지 않은 주요 캐릭터 {inactive.length}명이 있습니다.</div> : null}
+      <Card className="character-toolbar">
+        <SearchInput value={query} onChange={setQuery} placeholder="캐릭터 이름, 태그, 아크 검색" />
+        <SelectField label="중요도" value={importanceFilter} onChange={setImportanceFilter}>
+          <option value="all">전체 중요도</option>
+          {characterImportance.map((importance) => (
+            <option key={importance} value={importance}>
+              {importance}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField label="상태" value={statusFilter} onChange={setStatusFilter}>
+          <option value="all">전체 상태</option>
+          {characterStatuses.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField label="태그" value={tagFilter} onChange={setTagFilter}>
+          <option value="all">전체 태그</option>
+          {tags.map((tag) => (
+            <option key={tag} value={tag}>
+              {tag}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField label="소속" value={affiliationFilter} onChange={setAffiliationFilter}>
+          <option value="all">소속</option>
+          {affiliations.map((affiliation) => (
+            <option key={affiliation} value={affiliation}>
+              {affiliation}
+            </option>
+          ))}
+        </SelectField>
+        <label className="toggle-field">
+          <input checked={onlyMajor} type="checkbox" onChange={(event) => setOnlyMajor(event.target.checked)} />
+          <span>주요 인물만</span>
+        </label>
+        <SelectField label="정렬" value={sortMode} onChange={setSortMode}>
+          <option value="updated">최근 수정순</option>
+          <option value="name">이름순</option>
+          <option value="first">첫 등장순</option>
+          <option value="appearances">등장 회차 많은 순</option>
+        </SelectField>
+      </Card>
       <section className="character-studio">
         <div className="character-directory">
-          <Card className="character-toolbar">
-            <SearchInput value={query} onChange={setQuery} placeholder="이름, 별칭, 역할, 욕망, 태그 검색" />
-            <SelectField label="중요도" value={importanceFilter} onChange={setImportanceFilter}>
-              <option value="all">전체 중요도</option>
-              {characterImportance.map((importance) => (
-                <option key={importance} value={importance}>
-                  {importance}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField label="상태" value={statusFilter} onChange={setStatusFilter}>
-              <option value="all">전체 상태</option>
-              {characterStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField label="태그" value={tagFilter} onChange={setTagFilter}>
-              <option value="all">전체 태그</option>
-              {tags.map((tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField label="소속" value={affiliationFilter} onChange={setAffiliationFilter}>
-              <option value="all">전체 소속</option>
-              {affiliations.map((affiliation) => (
-                <option key={affiliation} value={affiliation}>
-                  {affiliation}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField label="정렬" value={sortMode} onChange={setSortMode}>
-              <option value="updated">최근 수정순</option>
-              <option value="name">이름순</option>
-              <option value="first">첫 등장순</option>
-              <option value="appearances">등장 회차 많은 순</option>
-            </SelectField>
-            <label className="toggle-field">
-              <input checked={onlyMajor} type="checkbox" onChange={(event) => setOnlyMajor(event.target.checked)} />
-              <span>주요 인물만 보기</span>
-            </label>
-          </Card>
-
           {filtered.length ? (
             <div className="character-card-grid">
               {filtered.map((character) => (
@@ -1050,6 +1050,10 @@ function CharactersPage({ project, selectedIds, setSelectedIds, updateCollection
           ) : (
             <EmptyState title="조건에 맞는 캐릭터가 없습니다" description="검색어나 필터를 조금 넓혀 보세요." />
           )}
+          <div className="character-list-footer">
+            <span>전체 {project.characters.length}명 중 {filtered.length ? `1-${filtered.length}` : "0"}명 표시</span>
+            <span>6개씩 보기</span>
+          </div>
         </div>
 
         <CharacterEditor
@@ -1057,7 +1061,7 @@ function CharactersPage({ project, selectedIds, setSelectedIds, updateCollection
           navigateTo={navigateTo}
           project={project}
           onDelete={() => selected && removeCharacter(selected.id)}
-          onUpdate={(patch) => updateCollectionItem("characters", selected.id, patch)}
+          onUpdate={(patch) => selected && updateCollectionItem("characters", selected.id, patch)}
         />
       </section>
     </PageShell>
@@ -1123,9 +1127,13 @@ function createDefaultCharacter(id) {
 function CharacterCard({ character, onSelect, selected, stats }) {
   const firstEpisode = stats?.firstEpisode || character.firstEpisode || "-";
   const lastEpisode = stats?.lastEpisode || character.lastEpisode || "-";
+  const relationshipCount = character.relatedCharacterIds?.length ?? 0;
+  const description = character.memo || character.desire || character.appearanceSummary || "이 인물이 독자에게 남길 인상을 정리해 주세요.";
 
   return (
     <button className={selected ? "character-profile-card active" : "character-profile-card"} type="button" onClick={onSelect}>
+      {selected ? <span className="selected-check">✓</span> : null}
+      <span className="card-menu-dot">•••</span>
       <CharacterAvatar character={character} size="card" />
       <div className="character-card-body">
         <div className="character-card-head">
@@ -1139,13 +1147,16 @@ function CharacterCard({ character, onSelect, selected, stats }) {
           <Badge tone={characterStatusTone(character.status)}>{character.status || "미정"}</Badge>
           {character.affiliation ? <Badge tone="muted">{character.affiliation}</Badge> : null}
         </div>
-        <p className="character-desire">{character.desire || character.memo || "핵심 욕망을 정리해 주세요."}</p>
-        <div className="character-card-stats">
-          <span>첫 등장 {firstEpisode}</span>
-          <span>최근 {lastEpisode}</span>
-          <span>등장 {stats?.appearanceCount ?? 0}</span>
-          <span>떡밥 {stats?.foreshadowCount ?? 0}</span>
+        <div className="character-episode-line">
+          <span>첫 등장 {firstEpisode}화</span>
+          <span>최근 {lastEpisode}화</span>
         </div>
+        <div className="character-card-stats">
+          <span>등장 {stats?.appearanceCount ?? 0}회</span>
+          <span>떡밥 {stats?.foreshadowCount ?? 0}개</span>
+          <span>관계 {relationshipCount}명</span>
+        </div>
+        <p className="character-desire">{description}</p>
         <div className="tag-row compact">
           {(character.tags ?? []).slice(0, 4).map((tag) => (
             <span key={tag}>{tag}</span>
@@ -1175,6 +1186,7 @@ function CharacterEditor({ character, navigateTo, project, onDelete, onUpdate })
   const relatedWorldItems = project.worldItems.filter(
     (item) => item.relatedCharacterIds?.includes(character.id) || character.relatedWorldItemIds?.includes(item.id)
   );
+  const recentEpisodes = appearanceEpisodes.slice(-6);
   const latestEpisode = Math.max(0, ...project.episodes.map((episode) => Number(episode.number) || 0));
   const inactive = majorCharacterImportance.has(character.importance) && lastAppearance?.number && latestEpisode - Number(lastAppearance.number) >= 20;
   const relatedCharacters = project.characters.filter((item) => item.id !== character.id);
@@ -1225,27 +1237,45 @@ function CharacterEditor({ character, navigateTo, project, onDelete, onUpdate })
   return (
     <aside className="character-detail-panel">
       <div className="character-hero">
-        <CharacterAvatar character={character} size="hero" />
+        <div className="character-image-column">
+          <CharacterAvatar character={character} size="hero" />
+          <div className="character-image-actions">
+            <input ref={inputRef} accept="image/*" className="visually-hidden" type="file" onChange={handleAvatarUpload} />
+            <Button tone="secondary" onClick={() => inputRef.current?.click()}>이미지 변경</Button>
+            {character.avatarDataUrl ? <Button tone="ghost" onClick={() => onUpdate(removeCharacterAvatar(character.id))}>이미지 삭제</Button> : null}
+          </div>
+          <small className="avatar-note">이미지는 브라우저에만 저장됩니다.</small>
+        </div>
         <div className="character-hero-main">
-          <div className="character-hero-title">
-            <p className="eyebrow">Character Profile</p>
-            <h3>{character.name}</h3>
-            <p>{character.alias || character.role || "아직 별칭과 역할이 정해지지 않았습니다."}</p>
+          <div className="character-hero-top">
+            <div className="character-hero-title">
+              <h3>{character.name}</h3>
+              <p>{character.role || character.alias || "역할 미정"}</p>
+            </div>
+            <div className="character-updated">
+              <span>최근 수정</span>
+              <strong>{formatDateTime(character.updatedAt)}</strong>
+            </div>
           </div>
           <div className="chip-strip">
             <Badge tone={importanceTone(character.importance)}>{character.importance}</Badge>
             <Badge tone={characterStatusTone(character.status)}>{character.status || "미정"}</Badge>
             {character.affiliation ? <Badge tone="muted">{character.affiliation}</Badge> : null}
           </div>
-          <div className="character-hero-actions">
-            <input ref={inputRef} accept="image/*" className="visually-hidden" type="file" onChange={handleAvatarUpload} />
-            <Button tone="secondary" onClick={() => inputRef.current?.click()}>이미지 변경</Button>
-            {character.avatarDataUrl ? <Button tone="ghost" onClick={() => onUpdate(removeCharacterAvatar(character.id))}>이미지 삭제</Button> : null}
+          <div className="character-fact-row">
+            <span>{character.species || "종족 미정"}</span>
+            <span>{character.gender || "성별 미정"}</span>
+            <span>{character.age || "나이 미정"}</span>
+            <span>{character.job || "직업 미정"}</span>
+            <span>{character.affiliation || "소속 없음"}</span>
+          </div>
+          <div className="profile-note-card">
+            <span>한 줄 소개</span>
+            <p>{character.memo || character.desire || "이 캐릭터의 한 줄 소개를 입력해 주세요."}</p>
+          </div>
+          <div className="character-danger-row">
             <Button tone="danger" onClick={onDelete}>삭제</Button>
           </div>
-          <small className="avatar-note">
-            업로드 이미지는 서버로 전송되지 않고 512px 이하 dataURL로 압축되어 이 브라우저의 localStorage에만 저장됩니다.
-          </small>
           {avatarNotice ? <p className="avatar-warning">{avatarNotice}</p> : null}
         </div>
       </div>
@@ -1437,6 +1467,46 @@ function CharacterEditor({ character, navigateTo, project, onDelete, onUpdate })
           </div>
         ) : null}
       </div>
+      <div className="character-link-panels">
+        <div className="character-link-panel">
+          <div>
+            <strong>관련 떡밥</strong>
+            <small>{relatedForeshadows.length}개</small>
+          </div>
+          {(relatedForeshadows.length ? relatedForeshadows.slice(0, 2) : [{ id: "empty-foreshadow", title: "연결된 떡밥 없음", status: "" }]).map((item) => (
+            <span key={item.id}>
+              {item.title}
+              {item.status ? <Badge tone={item.status === "완전 회수" ? "success" : "warning"}>{item.status}</Badge> : null}
+            </span>
+          ))}
+        </div>
+        <div className="character-link-panel">
+          <div>
+            <strong>관련 세력</strong>
+            <small>{relatedFactions.length}개</small>
+          </div>
+          {(relatedFactions.length ? relatedFactions.slice(0, 2) : [{ id: "empty-faction", name: "연결된 세력 없음", type: "" }]).map((item) => (
+            <span key={item.id}>
+              {item.name}
+              {item.type ? <Badge tone="info">{item.type}</Badge> : null}
+            </span>
+          ))}
+        </div>
+        <div className="character-link-panel">
+          <div>
+            <strong>최근 등장 회차</strong>
+            <small>{appearanceEpisodes.length}회</small>
+          </div>
+          <div className="recent-episode-pills">
+            {(recentEpisodes.length ? recentEpisodes : []).map((episode) => (
+              <button key={episode.id} type="button" onClick={() => navigateTo({ page: "episodes", id: episode.id })}>
+                {episode.number}화
+              </button>
+            ))}
+            {!recentEpisodes.length ? <span>등장 회차 없음</span> : null}
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }
@@ -1487,6 +1557,18 @@ function formatDate(value) {
   if (!value) return "-";
 
   return new Intl.DateTimeFormat("ko-KR", { month: "2-digit", day: "2-digit" }).format(new Date(value));
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function FactionsPage({ project, selectedIds, setSelectedIds, updateCollectionItem, addCollectionItem, deleteCollectionItem, navigateTo }) {
@@ -1941,9 +2023,9 @@ function SearchPage({ project, navigateTo }) {
   );
 }
 
-function PageShell({ actions, children, description, eyebrow, title }) {
+function PageShell({ actions, children, className = "", description, eyebrow, title }) {
   return (
-    <div className="page-stack">
+    <div className={`page-stack ${className}`}>
       <header className="page-header">
         <div className="page-title-block">
           <p className="eyebrow">{eyebrow}</p>
