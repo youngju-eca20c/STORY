@@ -31,16 +31,16 @@ import {
 } from "./utils/storage";
 
 const pages = [
-  { id: "dashboard", label: "대시보드" },
-  { id: "episodes", label: "회차 관리" },
-  { id: "foreshadows", label: "떡밥" },
-  { id: "characters", label: "캐릭터" },
-  { id: "factions", label: "세력" },
-  { id: "world", label: "세계관" },
-  { id: "timeline", label: "연표" },
-  { id: "board", label: "기획 보드" },
-  { id: "sources", label: "원고 분석" },
-  { id: "search", label: "전체 검색" }
+  { id: "dashboard", label: "대시보드", short: "DB" },
+  { id: "episodes", label: "회차 관리", short: "EP" },
+  { id: "foreshadows", label: "떡밥", short: "FB" },
+  { id: "characters", label: "캐릭터", short: "CH" },
+  { id: "factions", label: "세력", short: "FC" },
+  { id: "world", label: "세계관", short: "WD" },
+  { id: "timeline", label: "연표", short: "TL" },
+  { id: "board", label: "기획 보드", short: "BD" },
+  { id: "sources", label: "원고 분석", short: "SC" },
+  { id: "search", label: "전체 검색", short: "SR" }
 ];
 
 const now = () => new Date().toISOString();
@@ -74,6 +74,10 @@ export default function App() {
     const timer = window.setTimeout(() => setToast(""), 2200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activePage, selectedProjectId]);
 
   function updateWorkspace(updater) {
     setWorkspace((current) => {
@@ -249,6 +253,9 @@ function Sidebar({
             >
               <strong>{item.meta.title}</strong>
               <span>{item.meta.status}</span>
+              <i className="story-progress">
+                <b style={{ width: `${getEpisodeProgress(item)}%` }} />
+              </i>
             </button>
           ))}
           {disabledStorySlots.map((slot) => (
@@ -268,7 +275,8 @@ function Sidebar({
             type="button"
             onClick={() => onSelectPage(page.id)}
           >
-            {page.label}
+            <span className="tab-glyph">{page.short}</span>
+            <span>{page.label}</span>
           </button>
         ))}
       </nav>
@@ -1327,7 +1335,7 @@ function PageShell({ actions, children, description, eyebrow, title }) {
   return (
     <div className="page-stack">
       <header className="page-header">
-        <div>
+        <div className="page-title-block">
           <p className="eyebrow">{eyebrow}</p>
           <h2>{title}</h2>
           <p>{description}</p>
@@ -1391,6 +1399,7 @@ function SectionTitle({ eyebrow, title }) {
 function EmptyState({ description, title }) {
   return (
     <div className="empty-state">
+      <span className="empty-mark">ST</span>
       <h3>{title}</h3>
       <p>{description}</p>
     </div>
@@ -1458,21 +1467,31 @@ function CheckGroup({ label, onChange, options, values = [] }) {
 
 function EpisodeMiniMap({ episodes, onSelect, selectedId }) {
   return (
-    <div className="episode-minimap">
-      {[...episodes]
-        .sort((a, b) => a.number - b.number)
-        .map((episode) => (
-          <button
-            aria-label={`${episode.number}화 ${episode.status}`}
-            className={selectedId === episode.id ? `mini-cell ${statusClass(episode.status)} active` : `mini-cell ${statusClass(episode.status)}`}
-            key={episode.id}
-            title={`${episode.number}화 · ${episode.title} · ${episode.status}`}
-            type="button"
-            onClick={() => onSelect(episode)}
-          >
-            {episode.number}
-          </button>
+    <div className="minimap-wrap">
+      <div className="episode-minimap">
+        {[...episodes]
+          .sort((a, b) => a.number - b.number)
+          .map((episode) => (
+            <button
+              aria-label={`${episode.number}화 ${episode.status}`}
+              className={selectedId === episode.id ? `mini-cell ${statusClass(episode.status)} active` : `mini-cell ${statusClass(episode.status)}`}
+              key={episode.id}
+              title={`${episode.number}화 · ${episode.title} · ${episode.status}`}
+              type="button"
+              onClick={() => onSelect(episode)}
+            >
+              {episode.number}
+            </button>
+          ))}
+      </div>
+      <div className="minimap-legend" aria-label="회차 상태 범례">
+        {episodeStatuses.map((status) => (
+          <span key={status}>
+            <i className={`mini-dot ${statusClass(status)}`} />
+            {status}
+          </span>
         ))}
+      </div>
     </div>
   );
 }
