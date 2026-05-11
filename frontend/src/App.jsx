@@ -30,17 +30,17 @@ import {
 import { loadBoardColumns, saveBoardColumns } from "./utils/storage";
 
 const pages = [
-  { id: "dashboard", label: "대시보드", short: "DB" },
-  { id: "episodes", label: "회차 로드맵", short: "EP" },
-  { id: "foreshadows", label: "떡밥 추적", short: "FB" },
-  { id: "characters", label: "캐릭터 도감", short: "CH" },
+  { id: "dashboard", label: "홈", short: "HM" },
+  { id: "episodes", label: "200화", short: "EP" },
+  { id: "foreshadows", label: "비밀", short: "FB" },
+  { id: "characters", label: "인물", short: "CH" },
   { id: "factions", label: "세력", short: "FC" },
   { id: "world", label: "세계관", short: "WD" },
   { id: "timeline", label: "연표", short: "TL" },
-  { id: "pacing", label: "페이싱 분석", short: "PC" },
-  { id: "board", label: "기획 보드", short: "BD" },
-  { id: "sources", label: "원고 분석", short: "SC" },
-  { id: "search", label: "전체 검색", short: "SR" }
+  { id: "pacing", label: "리듬", short: "PC" },
+  { id: "board", label: "메모", short: "BD" },
+  { id: "sources", label: "원고", short: "SC" },
+  { id: "search", label: "찾기", short: "SR" }
 ];
 
 const characterTabs = [
@@ -142,7 +142,7 @@ function Sidebar({ activePage, disabledStorySlots, onSelectPage, onSelectProject
         <div className="brand-mark">S2</div>
         <div>
           <h1>{appMeta.name}</h1>
-          <p>장편 웹소설 기획실</p>
+          <p>장편 웹소설 바이블</p>
         </div>
       </div>
 
@@ -183,34 +183,58 @@ function Sidebar({ activePage, disabledStorySlots, onSelectPage, onSelectProject
 }
 
 function DashboardPage({ project, navigateTo, setSelectedIds }) {
-  const statusCounts = getEpisodeStatusCounts(project);
   const foreshadowStats = getForeshadowStats(project);
   const warnings = getDashboardWarnings(project);
   const recentEpisodes = [...project.episodes].sort((a, b) => new Date(b.updatedAt ?? 0) - new Date(a.updatedAt ?? 0)).slice(0, 5);
   const majorArcs = project.arcs.slice(0, 6);
 
   return (
-    <PageShell description="Codex가 정리한 장편 웹소설 데이터를 한눈에 탐색합니다." eyebrow="Story Bible" title={project.meta.title}>
-      <section className="hero-summary">
-        <Card className="project-hero-card">
+    <PageShell className="home-page" description="설정집을 넘기듯 인물, 세계, 비밀을 따라가 봅니다." eyebrow="Story World" title={project.meta.title}>
+      <section className="story-intro">
+        <StoryCover project={project} />
+        <div className="story-intro-copy">
           <Badge tone="accent">{project.meta.genre}</Badge>
           <h3>{project.meta.logline}</h3>
           <p>{project.meta.theme}</p>
-          <div className="spine-list">
-            {project.storySpine.slice(0, 4).map((item) => (
-              <span key={item}>{item}</span>
-            ))}
+          <div className="story-entry-actions">
+            <button type="button" onClick={() => navigateTo({ page: "characters", id: project.characters[0]?.id })}>인물 만나기</button>
+            <button type="button" onClick={() => navigateTo({ page: "world", id: project.worldItems[0]?.id })}>세계 보기</button>
           </div>
-        </Card>
-        <div className="stat-grid compact">
-          <StatCard label="기획 진행률" value={`${getEpisodeProgress(project)}%`} />
-          <StatCard label="목표 회차" value={project.meta.targetEpisodes} />
-          <StatCard label="캐릭터" value={project.characters.length} />
-          <StatCard label="세력" value={project.factions.length} />
-          <StatCard label="세계관" value={project.worldItems.length} />
-          <StatCard label="미회수 떡밥" tone="warning" value={foreshadowStats.unresolved} />
+          <div className="story-mood-strip">
+            <span>{project.meta.targetEpisodes}화 장편</span>
+            <span>{project.characters.length}명의 인물</span>
+            <span>{foreshadowStats.unresolved}개의 미회수 비밀</span>
+          </div>
         </div>
       </section>
+
+      <section className="story-index-strip">
+        <button type="button" onClick={() => navigateTo({ page: "episodes", id: project.episodes[0]?.id })}>
+          <strong>{getEpisodeProgress(project)}%</strong>
+          <span>200화 여정</span>
+        </button>
+        <button type="button" onClick={() => navigateTo({ page: "characters", id: project.characters[0]?.id })}>
+          <strong>{project.characters.length}</strong>
+          <span>주요 인물</span>
+        </button>
+        <button type="button" onClick={() => navigateTo({ page: "factions", id: project.factions[0]?.id })}>
+          <strong>{project.factions.length}</strong>
+          <span>충돌하는 세력</span>
+        </button>
+        <button type="button" onClick={() => navigateTo({ page: "foreshadows", id: project.foreshadows[0]?.id })}>
+          <strong>{foreshadowStats.unresolved}</strong>
+          <span>아직 남은 비밀</span>
+        </button>
+      </section>
+
+      <Card className="project-hero-card">
+        <SectionTitle eyebrow="Core Notes" title="이 작품의 맛" />
+        <div className="spine-list">
+          {project.storySpine.slice(0, 4).map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+        </div>
+      </Card>
 
       <EpisodeMiniMap episodes={project.episodes} onSelect={(episode) => navigateTo({ page: "episodes", id: episode.id })} selectedId="" />
 
@@ -233,13 +257,13 @@ function DashboardPage({ project, navigateTo, setSelectedIds }) {
         </Card>
 
         <Card>
-          <SectionTitle eyebrow="Warnings" title="작가용 경고" />
+          <SectionTitle eyebrow="Signals" title="놓치면 아쉬운 단서" />
           <WarningCards warnings={warnings} />
         </Card>
       </section>
 
       <Card>
-        <SectionTitle eyebrow="Recent" title="최근 수정/중요 회차" />
+        <SectionTitle eyebrow="Episodes" title="최근 눈여겨볼 회차" />
         <div className="episode-list">
           {recentEpisodes.map((episode) => (
             <button
@@ -265,6 +289,24 @@ function DashboardPage({ project, navigateTo, setSelectedIds }) {
         </div>
       </Card>
     </PageShell>
+  );
+}
+
+function StoryCover({ project }) {
+  const isAccounting = project.id === "demon-castle-accounting-rookie";
+  const motifs = isAccounting ? ["미처리 영수증", "마왕성", "비밀 장부"] : ["영원의 겨울", "불꽃 마녀", "폐허 수도원"];
+
+  return (
+    <figure className={isAccounting ? "story-cover accounting" : "story-cover witch"}>
+      <div className="cover-sigil" aria-hidden="true">
+        {isAccounting ? "LEDGER" : "EMBER"}
+      </div>
+      <figcaption>
+        <span>{project.meta.genre}</span>
+        <strong>{project.meta.title}</strong>
+        <em>{motifs.join(" · ")}</em>
+      </figcaption>
+    </figure>
   );
 }
 
