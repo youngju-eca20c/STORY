@@ -13,6 +13,26 @@ export function buildSearchResults(project, rawQuery) {
 
   const results = [];
 
+  project.arcs.forEach((arc) => {
+    if (
+      includes(arc.title, query) ||
+      includes(arc.summary, query) ||
+      includes(arc.question, query) ||
+      includes(arc.range, query) ||
+      includes(arc.act, query)
+    ) {
+      const firstEpisode = project.episodes.find((episode) => episode.arcId === arc.id || episode.arc === arc.title);
+
+      results.push({
+        id: `arc-${arc.id}`,
+        type: "아크",
+        title: arc.title,
+        description: arc.summary || arc.question,
+        target: firstEpisode ? { page: "episodes", id: firstEpisode.id } : { page: "dashboard", id: arc.id }
+      });
+    }
+  });
+
   project.episodes.forEach((episode) => {
     if (
       includes(episode.title, query) ||

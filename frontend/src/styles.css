@@ -939,6 +939,321 @@ textarea:focus-visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.viewer-mode .workspace {
+  padding-top: 24px;
+}
+
+.viewer-layout {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(360px, 0.86fr) minmax(520px, 1.14fr);
+}
+
+.viewer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.viewer-panel {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  max-height: calc(100vh - 54px);
+  overflow: auto;
+  position: sticky;
+  top: 24px;
+}
+
+.viewer-panel-head {
+  align-items: start;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--story-accent) 7%, #ffffff), #ffffff);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.viewer-panel-head h3 {
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.viewer-panel-head p {
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
+.viewer-panel-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px 22px;
+}
+
+.read-section {
+  background: #fbfaf7;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: grid;
+  gap: 7px;
+  padding: 13px 14px;
+}
+
+.read-section h4 {
+  color: var(--ink);
+  font-size: 13px;
+  margin: 0;
+}
+
+.read-section p {
+  color: var(--ink-soft);
+  line-height: 1.65;
+  margin: 0;
+  white-space: pre-line;
+}
+
+.info-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.info-grid div {
+  background: #f8f7f3;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 10px 12px;
+}
+
+.info-grid dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.info-grid dd {
+  color: var(--ink);
+  font-weight: 850;
+  margin: 4px 0 0;
+}
+
+.entity-links,
+.mini-list {
+  display: grid;
+  gap: 9px;
+}
+
+.entity-links > span,
+.mini-list > span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.entity-links > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.entity-links button,
+.next-link-card {
+  background: color-mix(in srgb, var(--story-accent) 9%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--story-accent) 22%, var(--line));
+  border-radius: 999px;
+  color: #394150;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 8px 11px;
+}
+
+.next-link-card {
+  border-radius: 14px;
+  display: grid;
+  gap: 5px;
+  padding: 13px 14px;
+  text-align: left;
+}
+
+.next-link-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.next-link-card strong {
+  color: var(--ink);
+}
+
+.episode-pill-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.episode-pill-grid button {
+  background: #fbfaf7;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: inherit;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  text-align: left;
+}
+
+.episode-pill-grid strong {
+  color: color-mix(in srgb, var(--story-accent) 65%, #18202d);
+  font-size: 13px;
+}
+
+.episode-pill-grid span {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arc-card-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.arc-card {
+  background:
+    linear-gradient(135deg, #ffffff, #f8f7f3);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  text-align: left;
+}
+
+.arc-card span,
+.arc-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.arc-card strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.arc-card p {
+  color: var(--ink-soft);
+  display: -webkit-box;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.spine-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.spine-list span {
+  background: #fbfaf7;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 9px 10px;
+}
+
+.analysis-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bar-list {
+  display: grid;
+  gap: 10px;
+}
+
+.bar-list div {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(90px, 0.7fr) minmax(120px, 1fr) 40px;
+}
+
+.bar-list span {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 850;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-list b {
+  background: color-mix(in srgb, var(--story-accent) 62%, #ffffff);
+  border-radius: 999px;
+  display: block;
+  height: 9px;
+  max-width: 100%;
+}
+
+.bar-list div::before {
+  background: #ece9e2;
+  border-radius: 999px;
+  content: "";
+  grid-column: 2;
+  grid-row: 1;
+  height: 9px;
+  width: 100%;
+}
+
+.bar-list b {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.bar-list strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.mini-list ul {
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mini-list li {
+  background: #fbfaf7;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
 .check-group {
   display: grid;
   gap: 8px;
@@ -2022,12 +2337,15 @@ textarea:focus-visible {
   .tool-layout,
   .dashboard-layout,
   .hero-summary,
-  .character-studio {
+  .character-studio,
+  .viewer-layout,
+  .analysis-grid {
     grid-template-columns: 1fr;
   }
 
   .editor-panel,
-  .character-detail-panel {
+  .character-detail-panel,
+  .viewer-panel {
     max-height: none;
     position: static;
   }
@@ -2062,12 +2380,15 @@ textarea:focus-visible {
   .filter-grid.two,
   .filter-grid.three,
   .filter-grid.four,
+  .filter-toolbar,
   .entity-grid,
   .entity-grid.two,
   .board-grid,
   .source-grid,
   .warning-grid,
   .editor-grid,
+  .info-grid,
+  .analysis-grid,
   .character-toolbar,
   .character-hero,
   .character-meta-strip,

@@ -145,6 +145,7 @@ function normalizeCharacters(characters = []) {
       role: character.role ?? "",
       importance: character.importance ?? inferImportance(character),
       status: characterStatuses.includes(character.status) ? character.status : character.status || "생존",
+      avatar: character.avatar ?? "",
       avatarDataUrl: character.avatarDataUrl ?? "",
       avatarPrompt: character.avatarPrompt ?? "",
       firstEpisode: character.firstEpisode ?? "",
